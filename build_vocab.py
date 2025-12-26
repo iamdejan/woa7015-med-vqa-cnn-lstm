@@ -1,6 +1,7 @@
-from datasets import load_dataset
-import re
 import json
+import re
+
+from datasets import load_dataset
 
 
 class Vocab:
@@ -19,15 +20,14 @@ class Vocab:
         if vocab in self.vocab2idx:
             return self.vocab2idx[vocab]
         else:
-            return self.vocab2idx['<unk>']
+            return self.vocab2idx["<unk>"]
 
     def idx2word(self, idx):
         return self.vocab[idx]
 
 
-
 # regex for word
-REGEX = re.compile(r'(\W+)')
+REGEX = re.compile(r"(\W+)")
 
 
 def build_question_vocab(dataset, set_name: str):
@@ -40,9 +40,9 @@ def build_question_vocab(dataset, set_name: str):
 
     q_vocab = list(set(q_vocab))
     q_vocab.sort()
-    q_vocab.insert(0, '<pad>')
-    q_vocab.insert(1, '<unk>')
-    with open(f"./data/{set_name}/q_vocab.json", 'w') as json_file:
+    q_vocab.insert(0, "<pad>")
+    q_vocab.insert(1, "<unk>")
+    with open(f"./data/{set_name}/q_vocab.json", "w") as json_file:
         json.dump(q_vocab, json_file, indent=4)
 
 
@@ -52,14 +52,14 @@ def build_answer_vocab(dataset, set_name: str):
         clean_ans = answer.lower().strip()
         if len(clean_ans) > 0:
             ans_vocab.append(clean_ans)
-    
+
     # Create unique list of full phrases
     ans_vocab = list(set(ans_vocab))
     ans_vocab.sort()
-    
+
     # Add special token (unk is still useful for unseen answers in test time)
-    ans_vocab.insert(0, '<unk>')
-    with open(f"./data/{set_name}/ans_vocab.json", 'w') as json_file:
+    ans_vocab.insert(0, "<unk>")
+    with open(f"./data/{set_name}/ans_vocab.json", "w") as json_file:
         json.dump(ans_vocab, json_file, indent=4)
 
 
@@ -67,10 +67,10 @@ SETS = ["train", "test"]
 
 
 def main():
-    dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir='./cache')
-    
+    dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir="./cache")
+
     for set_name in SETS:
-        set = dataset["test"]
+        set = dataset[set_name]
 
         build_question_vocab(set, set_name)
         build_answer_vocab(set, set_name)

@@ -40,12 +40,19 @@ def main():
     question_vocab = Vocab("./data/test/q_vocab.json")
     answer_vocab = Vocab("./data/test/ans_vocab.json")
 
-    model = VQAModel(utils.FEATURE_SIZE, question_vocab.vocab_size, answer_vocab.vocab_size, utils.WORD_EMBED, utils.HIDDEN_SIZE, utils.NUM_HIDDEN)
+    model = VQAModel(
+        utils.FEATURE_SIZE,
+        question_vocab.vocab_size,
+        answer_vocab.vocab_size,
+        utils.WORD_EMBED,
+        utils.HIDDEN_SIZE,
+        utils.NUM_HIDDEN,
+    )
     model = model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE, gamma=GAMMA)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     print(">> start training")
     start_time = time.time()
@@ -75,7 +82,7 @@ def main():
             if answer_str in answer_vocab.vocab2idx:
                 ans_idx = answer_vocab.word2idx(answer_str)
             else:
-                ans_idx = answer_vocab.word2idx('<unk>')
+                ans_idx = answer_vocab.word2idx("<unk>")
 
             # Create the target tensor
             # We want a 1D Tensor containing a single class index: [Index]
@@ -110,7 +117,7 @@ def main():
             if answer_str in answer_vocab.vocab2idx:
                 ans_idx = answer_vocab.word2idx(answer_str)
             else:
-                ans_idx = answer_vocab.word2idx('<unk>')
+                ans_idx = answer_vocab.word2idx("<unk>")
 
             # Create the target tensor
             # We want a 1D Tensor containing a single class index: [Index]
@@ -131,11 +138,11 @@ def main():
                 f.write(str(epoch + 1) + "\t" + str(epoch_loss[phase]) + "\n")
         print("Epoch:{}/{} | Training Loss: {train:6f} | Validation Loss: {val:6f}".format(epoch + 1, EPOCHS, **epoch_loss))
         scheduler.step()
-        early_stop = early_stopping(model, epoch_loss['val'])
-        if (epoch+1) % 5 == 0:
-            torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, f'model-epoch-{epoch+1}.pth'))
+        early_stop = early_stopping(model, epoch_loss["val"])
+        if (epoch + 1) % 5 == 0:
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, f"model-epoch-{epoch + 1}.pth"))
         if early_stop:
-            print(f'>> Early stop at {epoch+1} epoch')
+            print(f">> Early stop at {epoch + 1} epoch")
             break
 
     end_time = time.time()
@@ -152,7 +159,7 @@ def early_stopping(model, epoch_loss, patience=7):
 
     if epoch_loss < early_stopping.best_loss:
         early_stopping.best_loss = epoch_loss
-        torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, 'best_model.pt'))
+        torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, "best_model.pt"))
 
     if epoch_loss > early_stopping.record_loss:
         early_stopping.counter += 1
