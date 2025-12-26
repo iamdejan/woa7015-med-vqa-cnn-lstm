@@ -1,25 +1,96 @@
-import re
+import os
+import time
 
+import torch
+import torch.nn as nn
 from datasets import load_dataset
-from torchvision import transforms
+from torch import optim
 
-FEATURE_SIZE, WORD_EMBED = 1024, 300
-MAX_QU_LEN, NUM_HIDDEN, HIDDEN_SIZE = 30, 2, 512
-REGEX = re.compile(r"(\W+)")
+import utils
+from build_vocab import Vocab
+from model import VQAModel
 
-transform = transforms.Compose(
-    [
-        transforms.Resize((224, 224)),  # not every image is in 224x224 size
-        transforms.ToTensor(),  # convert to (C,H,W) and [0,1]
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),  # mean=0; std=1
-    ]
-)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+LEARNING_RATE = 0.001
+STEP_SIZE = 10
+GAMMA = 0.1
+EPOCHS = 50
+TRAIN = "train"
+VAL = "val"
+LOG_DIR = "./log"
 
 
 def main():
     dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir="./cache")
-    train_dataset = dataset["train"]
-    pass
+    train_dataset = dataset[TRAIN]
+    new_split_dataset = train_dataset.train_test_split(test_size=0.2)
+    train_dataset = new_split_dataset[TRAIN]
+    val_dataset = new_split_dataset[VAL]
+
+    question_vocab = Vocab("./data/test/q_vocab.json")
+    answer_vocab = Vocab("./data/test/ans_vocab.json")
+
+    model = VQAModel(utils.FEATURE_SIZE, question_vocab.vocab_size, answer_vocab.vocab_size, utils.WORD_EMBED, utils.HIDDEN_SIZE, utils.NUM_HIDDEN)
+
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE, gamma=GAMMA)
+    criterion = nn.CrossEntropyLoss()
+
+    print(">> start training")
+    start_time = time.time()
+    for epoch in range(EPOCHS):
+        epoch_loss = {key: 0 for key in [TRAIN, VAL]}
+
+        model.train()
+        for item in train_dataset:
+            image = item["image"].convert("RGB")
+            image_tensor = utils.transform(image).unsqueeze(0)
+            image_tensor = image_tensor.to(device)
+
+            # --- PREPROCESS QUESTION ---
+            question_str = item["question"]
+            # Convert string -> Tensor of indices
+            question_tensor = utils.process_question(question_str, question_vocab, utils.MAX_QU_LEN)
+
+            label = item["answer"].to(device=device)
+            # forward
+            logits = model(image_tensor, question_tensor)
+            loss = criterion(logits, label)
+            epoch_loss[TRAIN] += loss.item()
+            # backward
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        model.eval()
+        for item in val_dataset:
+            image = item["image"].convert("RGB")
+            image_tensor = utils.transform(image).unsqueeze(0)
+            image_tensor = image_tensor.to(device)
+
+            # --- PREPROCESS QUESTION ---
+            question_str = item["question"]
+            # Convert string -> Tensor of indices
+            question_tensor = utils.process_question(question_str, question_vocab, utils.MAX_QU_LEN)
+
+            label = item["answer"].to(device=device)
+            with torch.no_grad():
+                logits = model(image_tensor, question_tensor)
+                loss = criterion(logits, label)
+            epoch[VAL] += loss.item()
+
+        # statistic
+        for phase in [TRAIN, VAL]:
+            epoch_loss[phase] /= len(new_split_dataset[phase])
+            with open(os.path.join(LOG_DIR, f"{phase}_log.txt"), "a") as f:
+                f.write(str(epoch + 1) + "\t" + str(epoch_loss[phase]) + "\n")
+        print("Epoch:{}/{} | Training Loss: {train:6f} | Validation Loss: {val:6f}".format(epoch + 1, EPOCHS, **epoch_loss))
+        scheduler.step()
+
+    end_time = time.time()
+    training_time = end_time - start_time
+    print(f">> Finishing training | Training Time:{training_time // 60:.0f}m:{training_time % 60:.0f}s")
 
 
 if __name__ == "__main__":
