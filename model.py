@@ -66,17 +66,25 @@ class VQAModel(nn.Module):
         self.qu_encoder = QuestionModel(qu_vocab_size, word_embed, hidden_size, num_hidden, feature_size)
         self.dropout = nn.Dropout(0.5)
         self.tanh = nn.Tanh()
-        self.fc1 = nn.Linear(feature_size, ans_vocab_size)
+
+        # COMBINED SIZE: feature_size (Image) + feature_size (Question)
+        combined_dim = feature_size + feature_size
+
+        self.fc1 = nn.Linear(combined_dim, ans_vocab_size)
         self.fc2 = nn.Linear(ans_vocab_size, ans_vocab_size)
 
     def forward(self, image, question):
         img_feature = self.img_encoder(image)  # (batchsize, feature_size=1024)
         qst_feature = self.qu_encoder(question)
-        combined_feature = img_feature * qst_feature
+        # CHANGE: Concatenate instead of Multiply
+        combined_feature = torch.cat((img_feature, qst_feature), dim=1)  # [batch, 2048]
+
         combined_feature = self.dropout(combined_feature)
         combined_feature = self.tanh(combined_feature)
-        combined_feature = self.fc1(combined_feature)  # (batchsize, ans_vocab_size=1000)
-        combined_feature = self.dropout(combined_feature)
+
+        combined_feature = self.fc1(combined_feature)
         combined_feature = self.tanh(combined_feature)
-        logits = self.fc2(combined_feature)  # (batchsize, ans_vocab_size=1000)
+
+        logits = self.fc2(combined_feature)
+
         return logits

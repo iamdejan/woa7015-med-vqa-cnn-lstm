@@ -12,7 +12,7 @@ from model import VQAModel
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-LEARNING_RATE = 0.001
+LEARNING_RATE = 1e-4  # Decrease from 0.001 to 0.0001
 STEP_SIZE = 10
 GAMMA = 0.1
 EPOCHS = 50
