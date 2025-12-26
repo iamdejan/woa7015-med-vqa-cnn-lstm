@@ -28,6 +28,8 @@ def main():
     new_split_dataset = train_dataset.train_test_split(test_size=0.2, shuffle=True)
     train_dataset = new_split_dataset[TRAIN]
     val_dataset = new_split_dataset["test"]
+    new_split_dataset["val"] = val_dataset
+    del new_split_dataset["test"]
 
     question_vocab = Vocab("./data/test/q_vocab.json")
     answer_vocab = Vocab("./data/test/ans_vocab.json")
@@ -46,6 +48,7 @@ def main():
 
         model.train()
         for item in train_dataset:
+            # --- PREPROCESS IMAGE ---
             image = item["image"].convert("RGB")
             image_tensor = utils.transform(image).unsqueeze(0)
             image_tensor = image_tensor.to(device)
@@ -56,13 +59,19 @@ def main():
             question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
             # Add Batch Dimension: (1, 30)
             question_tensor = question_tensor.unsqueeze(0).to(device)
-            print(f"question_tensor.shape = {question_tensor.shape}")
 
-            # --- PREPROCESS ANSWER ---
-            answer_str = item["answer"]
-            answer_tensor = utils.convert_text_to_token_tensor(answer_str, answer_vocab, utils.MAX_QU_LEN)
-            answer_tensor = answer_tensor.unsqueeze(0).to(device)
-            print(f"answer_tensor.shape = {answer_tensor.shape}")
+            # --- PREPROCESS ANSWER (UPDATED) ---
+            answer_str = item["answer"].lower().strip()
+
+            # Look up the ID for the WHOLE phrase
+            if answer_str in answer_vocab.vocab2idx:
+                ans_idx = answer_vocab.word2idx(answer_str)
+            else:
+                ans_idx = answer_vocab.word2idx('<unk>')
+
+            # Create the target tensor
+            # We want a 1D Tensor containing a single class index: [Index]
+            answer_tensor = torch.tensor([ans_idx], dtype=torch.long).to(device)
 
             # forward
             logits = model(image_tensor, question_tensor)
@@ -75,6 +84,7 @@ def main():
 
         model.eval()
         for item in val_dataset:
+            # --- PREPROCESS IMAGE ---
             image = item["image"].convert("RGB")
             image_tensor = utils.transform(image).unsqueeze(0)
             image_tensor = image_tensor.to(device)
@@ -83,18 +93,32 @@ def main():
             question_str = item["question"]
             # Convert string -> Tensor of indices
             question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
+            # Add Batch Dimension: (1, 30)
+            question_tensor = question_tensor.unsqueeze(0).to(device)
 
-            label = item["answer"].to(device=device)
+            # --- PREPROCESS ANSWER (UPDATED) ---
+            answer_str = item["answer"].lower().strip()
+
+            # Look up the ID for the WHOLE phrase
+            if answer_str in answer_vocab.vocab2idx:
+                ans_idx = answer_vocab.word2idx(answer_str)
+            else:
+                ans_idx = answer_vocab.word2idx('<unk>')
+
+            # Create the target tensor
+            # We want a 1D Tensor containing a single class index: [Index]
+            answer_tensor = torch.tensor([ans_idx], dtype=torch.long).to(device)
+
             with torch.no_grad():
                 logits = model(image_tensor, question_tensor)
-                loss = criterion(logits, label)
-            epoch[VAL] += loss.item()
+                loss = criterion(logits, answer_tensor)
+            epoch_loss[VAL] += loss.item()
 
         # statistic
         # NOTE:
         #  new_split_dataset["train"] == train_dataset
         #  new_split_dataset["test"] == val_dataset
-        for phase in ["train", "test"]:
+        for phase in [TRAIN, VAL]:
             epoch_loss[phase] /= len(new_split_dataset[phase])
             with open(os.path.join(LOG_DIR, f"{phase}_log.txt"), "a") as f:
                 f.write(str(epoch + 1) + "\t" + str(epoch_loss[phase]) + "\n")
