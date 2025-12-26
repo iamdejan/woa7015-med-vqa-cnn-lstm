@@ -46,8 +46,8 @@ def main():
     dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir="./cache")
     test_dataset = dataset["test"]
 
-    question_vocab = Vocab("./data/q_vocab.json")
-    answer_vocab = Vocab("./data/ans_vocab.json")
+    question_vocab = Vocab("./data/test/q_vocab.json")
+    answer_vocab = Vocab("./data/test/ans_vocab.json")
 
     model = VQAModel(FEATURE_SIZE, question_vocab.vocab_size, answer_vocab.vocab_size, WORD_EMBED, HIDDEN_SIZE, NUM_HIDDEN)
     model.eval()

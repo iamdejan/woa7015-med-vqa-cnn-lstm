@@ -30,7 +30,7 @@ class Vocab:
 REGEX = re.compile(r'(\W+)')
 
 
-def build_question_vocab(dataset):
+def build_question_vocab(dataset, set_name: str):
     # build question vocabulary
     q_vocab = []
     for question in dataset["question"]:
@@ -42,11 +42,11 @@ def build_question_vocab(dataset):
     q_vocab.sort()
     q_vocab.insert(0, '<pad>')
     q_vocab.insert(1, '<unk>')
-    with open("./data/q_vocab.json", 'w') as json_file:
+    with open(f"./data/{set_name}/q_vocab.json", 'w') as json_file:
         json.dump(q_vocab, json_file, indent=4)
 
 
-def build_answer_vocab(dataset):
+def build_answer_vocab(dataset, set_name: str):
     ans_vocab = []
     for answer in dataset["answer"]:
         split = REGEX.split(answer.lower())
@@ -55,16 +55,21 @@ def build_answer_vocab(dataset):
     ans_vocab = list(set(ans_vocab))
     ans_vocab.sort()
     ans_vocab.insert(0, '<unk>')
-    with open('./data/ans_vocab.json', 'w') as json_file:
+    with open(f"./data/{set_name}/ans_vocab.json", 'w') as json_file:
         json.dump(ans_vocab, json_file, indent=4)
+
+
+SETS = ["train", "test"]
 
 
 def main():
     dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir='./cache')
-    test_dataset = dataset["test"]
+    
+    for set_name in SETS:
+        set = dataset["test"]
 
-    build_question_vocab(test_dataset)
-    build_answer_vocab(test_dataset)
+        build_question_vocab(set, set_name)
+        build_answer_vocab(set, set_name)
 
 
 if __name__ == "__main__":
