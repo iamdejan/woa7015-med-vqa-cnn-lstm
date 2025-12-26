@@ -28,7 +28,7 @@ def main():
     new_split_dataset = train_dataset.train_test_split(test_size=0.2, shuffle=True)
     train_dataset = new_split_dataset[TRAIN]
     val_dataset = new_split_dataset["test"]
-    new_split_dataset["val"] = val_dataset
+    new_split_dataset[VAL] = val_dataset
     del new_split_dataset["test"]
 
     question_vocab = Vocab("./data/test/q_vocab.json")

@@ -23,11 +23,8 @@ def main():
     for item in test_dataset:
         with torch.no_grad():
             # --- PREPROCESS IMAGE ---
-            image = item["image"].convert("RGB")  # Ensure 3 channels
-            # transform returns (3, 224, 224)
-            image_tensor = utils.transform(image)
-            # Add Batch Dimension: (1, 3, 224, 224) because VGG only accepts image with batch dimension
-            image_tensor = image_tensor.unsqueeze(0)
+            image = item["image"].convert("RGB")
+            image_tensor = utils.transform(image).unsqueeze(0)
 
             # --- PREPROCESS QUESTION ---
             question_str = item["question"]
