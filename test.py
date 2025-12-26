@@ -32,7 +32,7 @@ def main():
             # --- PREPROCESS QUESTION ---
             question_str = item["question"]
             # Convert string -> Tensor of indices
-            question_tensor = utils.process_question(question_str, question_vocab, utils.MAX_QU_LEN)
+            question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
             # Add Batch Dimension: (1, 30)
             question_tensor = question_tensor.unsqueeze(0)
 

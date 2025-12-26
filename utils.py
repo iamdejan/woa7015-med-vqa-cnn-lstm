@@ -17,11 +17,11 @@ transform = transforms.Compose(
 )
 
 
-def process_question(question_str, vocab, max_len=30):
+def convert_text_to_token_tensor(text, vocab, max_len=30):
     """Tokenizes and converts question string to indices tensor."""
     # 1. Tokenize (Simple regex split as used in typical VQA)
     # Note: Ensure this matches exactly how you trained the Vocab!
-    tokens = [t.strip() for t in REGEX.split(question_str.lower()) if t.strip()]
+    tokens = [t.strip() for t in REGEX.split(text.lower()) if t.strip()]
 
     # 2. Convert to Indices
     indices = [vocab.word2idx(token) for token in tokens]

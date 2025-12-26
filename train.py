@@ -16,23 +16,24 @@ LEARNING_RATE = 0.001
 STEP_SIZE = 10
 GAMMA = 0.1
 EPOCHS = 50
-TRAIN = "train"
-VAL = "val"
-LOG_DIR = "./log"
-MODEL_DIR = './model'
+TRAIN = r"train"
+VAL = r"val"
+LOG_DIR = r"./log"
+MODEL_DIR = r"./checkpoint"
 
 
 def main():
     dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir="./cache")
     train_dataset = dataset[TRAIN]
-    new_split_dataset = train_dataset.train_test_split(test_size=0.2)
+    new_split_dataset = train_dataset.train_test_split(test_size=0.2, shuffle=True)
     train_dataset = new_split_dataset[TRAIN]
-    val_dataset = new_split_dataset[VAL]
+    val_dataset = new_split_dataset["test"]
 
     question_vocab = Vocab("./data/test/q_vocab.json")
     answer_vocab = Vocab("./data/test/ans_vocab.json")
 
     model = VQAModel(utils.FEATURE_SIZE, question_vocab.vocab_size, answer_vocab.vocab_size, utils.WORD_EMBED, utils.HIDDEN_SIZE, utils.NUM_HIDDEN)
+    model = model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE, gamma=GAMMA)
@@ -52,12 +53,20 @@ def main():
             # --- PREPROCESS QUESTION ---
             question_str = item["question"]
             # Convert string -> Tensor of indices
-            question_tensor = utils.process_question(question_str, question_vocab, utils.MAX_QU_LEN)
+            question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
+            # Add Batch Dimension: (1, 30)
+            question_tensor = question_tensor.unsqueeze(0).to(device)
+            print(f"question_tensor.shape = {question_tensor.shape}")
 
-            label = item["answer"].to(device=device)
+            # --- PREPROCESS ANSWER ---
+            answer_str = item["answer"]
+            answer_tensor = utils.convert_text_to_token_tensor(answer_str, answer_vocab, utils.MAX_QU_LEN)
+            answer_tensor = answer_tensor.unsqueeze(0).to(device)
+            print(f"answer_tensor.shape = {answer_tensor.shape}")
+
             # forward
             logits = model(image_tensor, question_tensor)
-            loss = criterion(logits, label)
+            loss = criterion(logits, answer_tensor)
             epoch_loss[TRAIN] += loss.item()
             # backward
             optimizer.zero_grad()
@@ -73,7 +82,7 @@ def main():
             # --- PREPROCESS QUESTION ---
             question_str = item["question"]
             # Convert string -> Tensor of indices
-            question_tensor = utils.process_question(question_str, question_vocab, utils.MAX_QU_LEN)
+            question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
 
             label = item["answer"].to(device=device)
             with torch.no_grad():
@@ -82,7 +91,10 @@ def main():
             epoch[VAL] += loss.item()
 
         # statistic
-        for phase in [TRAIN, VAL]:
+        # NOTE:
+        #  new_split_dataset["train"] == train_dataset
+        #  new_split_dataset["test"] == val_dataset
+        for phase in ["train", "test"]:
             epoch_loss[phase] /= len(new_split_dataset[phase])
             with open(os.path.join(LOG_DIR, f"{phase}_log.txt"), "a") as f:
                 f.write(str(epoch + 1) + "\t" + str(epoch_loss[phase]) + "\n")
