@@ -50,7 +50,7 @@ def main():
         with torch.no_grad():
             # --- PREPROCESS IMAGE ---
             image = item["image"].convert("RGB")
-            image_tensor = utils.transform(image).unsqueeze(0)
+            image_tensor = utils.val_transform(image).unsqueeze(0)
 
             # --- PREPROCESS QUESTION ---
             question_str = item["question"]

@@ -50,7 +50,7 @@ def main():
     )
     model = model.to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE, gamma=GAMMA)
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
@@ -65,7 +65,7 @@ def main():
 
             # --- PREPROCESS IMAGE ---
             image = item["image"].convert("RGB")
-            image_tensor = utils.transform(image).unsqueeze(0)
+            image_tensor = utils.train_transform(image).unsqueeze(0)
             image_tensor = image_tensor.to(device)
 
             # --- PREPROCESS QUESTION ---
@@ -100,7 +100,7 @@ def main():
         for item in val_dataset:
             # --- PREPROCESS IMAGE ---
             image = item["image"].convert("RGB")
-            image_tensor = utils.transform(image).unsqueeze(0)
+            image_tensor = utils.val_transform(image).unsqueeze(0)
             image_tensor = image_tensor.to(device)
 
             # --- PREPROCESS QUESTION ---
