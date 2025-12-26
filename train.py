@@ -48,6 +48,8 @@ def main():
 
         model.train()
         for item in train_dataset:
+            optimizer.zero_grad()
+
             # --- PREPROCESS IMAGE ---
             image = item["image"].convert("RGB")
             image_tensor = utils.transform(image).unsqueeze(0)
@@ -78,7 +80,6 @@ def main():
             loss = criterion(logits, answer_tensor)
             epoch_loss[TRAIN] += loss.item()
             # backward
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -137,7 +138,6 @@ def main():
 
 
 def early_stopping(model, epoch_loss, patience=7):
-
     early_stop = False
     if not bool(early_stopping.__dict__):
         early_stopping.best_loss = epoch_loss
