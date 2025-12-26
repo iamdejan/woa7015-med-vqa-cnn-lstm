@@ -1,20 +1,7 @@
 import ssl
 
-import nltk
-
-try:
-    _create_unverified_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass
-else:
-    ssl._create_default_https_context = _create_unverified_https_context
-
-nltk.download("wordnet")
-nltk.download("punkt")
-nltk.download("omw-1.4")
-
-
 import evaluate
+import nltk
 import torch
 from datasets import load_dataset
 
@@ -24,11 +11,22 @@ from model import VQAModel
 
 
 def main():
+    try:
+        _create_unverified_https_context = ssl._create_unverified_context
+    except AttributeError:
+        pass
+    else:
+        ssl._create_default_https_context = _create_unverified_https_context
+
+    nltk.download("wordnet")
+    nltk.download("punkt")
+    nltk.download("omw-1.4")
+
     dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir="./cache")
     test_dataset = dataset["test"]
 
-    question_vocab = Vocab("./data/test/q_vocab.json")
-    answer_vocab = Vocab("./data/test/ans_vocab.json")
+    question_vocab = Vocab("./data/q_vocab.json")
+    answer_vocab = Vocab("./data/ans_vocab.json")
 
     model = VQAModel(
         feature_size=utils.FEATURE_SIZE,
