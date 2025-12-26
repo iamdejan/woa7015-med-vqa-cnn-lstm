@@ -19,10 +19,16 @@ EPOCHS = 50
 TRAIN = r"train"
 VAL = r"val"
 LOG_DIR = r"./log"
-MODEL_DIR = r"./checkpoint"
+CHECKPOINT_DIR = r"./checkpoint"
 
 
 def main():
+    # create directories for log and checkpoint
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
+    if not os.path.exists(CHECKPOINT_DIR):
+        os.makedirs(CHECKPOINT_DIR)
+
     dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir="./cache")
     train_dataset = dataset[TRAIN]
     new_split_dataset = train_dataset.train_test_split(test_size=0.2, shuffle=True)
@@ -127,7 +133,7 @@ def main():
         scheduler.step()
         early_stop = early_stopping(model, epoch_loss['val'])
         if (epoch+1) % 5 == 0:
-            torch.save(model.state_dict(), os.path.join(MODEL_DIR, f'model-epoch-{epoch+1}.pth'))
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, f'model-epoch-{epoch+1}.pth'))
         if early_stop:
             print(f'>> Early stop at {epoch+1} epoch')
             break
@@ -146,7 +152,7 @@ def early_stopping(model, epoch_loss, patience=7):
 
     if epoch_loss < early_stopping.best_loss:
         early_stopping.best_loss = epoch_loss
-        torch.save(model.state_dict(), os.path.join(MODEL_DIR, 'best_model.pt'))
+        torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, 'best_model.pt'))
 
     if epoch_loss > early_stopping.record_loss:
         early_stopping.counter += 1
@@ -160,8 +166,4 @@ def early_stopping(model, epoch_loss, patience=7):
 
 
 if __name__ == "__main__":
-    if not os.path.exists(LOG_DIR):
-        os.makedirs(LOG_DIR)
-    if not os.path.exists(MODEL_DIR):
-        os.makedirs(MODEL_DIR)
     main()
