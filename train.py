@@ -19,6 +19,7 @@ EPOCHS = 50
 TRAIN = "train"
 VAL = "val"
 LOG_DIR = "./log"
+MODEL_DIR = './model'
 
 
 def main():
@@ -87,11 +88,44 @@ def main():
                 f.write(str(epoch + 1) + "\t" + str(epoch_loss[phase]) + "\n")
         print("Epoch:{}/{} | Training Loss: {train:6f} | Validation Loss: {val:6f}".format(epoch + 1, EPOCHS, **epoch_loss))
         scheduler.step()
+        early_stop = early_stopping(model, epoch_loss['val'])
+        if (epoch+1) % 5 == 0:
+            torch.save(model.state_dict(), os.path.join(MODEL_DIR, f'model-epoch-{epoch+1}.pth'))
+        if early_stop:
+            print(f'>> Early stop at {epoch+1} epoch')
+            break
 
     end_time = time.time()
     training_time = end_time - start_time
     print(f">> Finishing training | Training Time:{training_time // 60:.0f}m:{training_time % 60:.0f}s")
 
 
+def early_stopping(model, epoch_loss, patience=7):
+
+    early_stop = False
+    if not bool(early_stopping.__dict__):
+        early_stopping.best_loss = epoch_loss
+        early_stopping.record_loss = epoch_loss
+        early_stopping.counter = 0
+
+    if epoch_loss < early_stopping.best_loss:
+        early_stopping.best_loss = epoch_loss
+        torch.save(model.state_dict(), os.path.join(MODEL_DIR, 'best_model.pt'))
+
+    if epoch_loss > early_stopping.record_loss:
+        early_stopping.counter += 1
+        if early_stopping.counter >= patience:
+            early_stop = True
+    else:
+        early_stopping.counter = 0
+        early_stopping.record_loss = epoch_loss
+
+    return early_stop
+
+
 if __name__ == "__main__":
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
+    if not os.path.exists(MODEL_DIR):
+        os.makedirs(MODEL_DIR)
     main()
