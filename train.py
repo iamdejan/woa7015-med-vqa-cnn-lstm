@@ -129,9 +129,6 @@ def main():
             epoch_loss[VAL] += loss.item()
 
         # statistic
-        # NOTE:
-        #  new_split_dataset["train"] == train_dataset
-        #  new_split_dataset["test"] == val_dataset
         for phase in [TRAIN, VAL]:
             epoch_loss[phase] /= len(new_split_dataset[phase])
             with open(os.path.join(LOG_DIR, f"{phase}_log.txt"), "a") as f:
@@ -140,7 +137,7 @@ def main():
         scheduler.step()
         early_stop = early_stopping(model, epoch_loss["val"])
         if (epoch + 1) % 5 == 0:
-            torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, f"model-epoch-{epoch + 1}.pth"))
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, f"model-epoch-{epoch + 1}.pt"))
         if early_stop:
             print(f">> Early stop at {epoch + 1} epoch")
             break
