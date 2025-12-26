@@ -1,3 +1,19 @@
+import ssl
+
+import nltk
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+nltk.download("wordnet")
+nltk.download("punkt")
+nltk.download("omw-1.4")
+
+
 import evaluate
 import torch
 from datasets import load_dataset
@@ -14,7 +30,15 @@ def main():
     question_vocab = Vocab("./data/test/q_vocab.json")
     answer_vocab = Vocab("./data/test/ans_vocab.json")
 
-    model = VQAModel(utils.FEATURE_SIZE, question_vocab.vocab_size, answer_vocab.vocab_size, utils.WORD_EMBED, utils.HIDDEN_SIZE, utils.NUM_HIDDEN)
+    model = VQAModel(
+        feature_size=utils.FEATURE_SIZE,
+        qu_vocab_size=question_vocab.vocab_size,
+        ans_vocab_size=answer_vocab.vocab_size,
+        word_embed=utils.WORD_EMBED,
+        hidden_size=utils.HIDDEN_SIZE,
+        num_hidden=utils.NUM_HIDDEN,
+    )
+    model.load_state_dict(torch.load("checkpoint/best_model.pt", weights_only=True))
     model.eval()
 
     all_preds = []
@@ -44,11 +68,6 @@ def main():
             # Convert Index back to Word
             pred_word = answer_vocab.idx2word(pred_idx)
             ground_truth = str(item["answer"]).lower()
-
-            print(f"Q: {question_str}")
-            print(f"A (Predicted): {pred_word}")
-            print(f"A (Ground Truth): {ground_truth}")
-            print("-" * 20)
 
             # Store for metrics
             all_preds.append(pred_word)

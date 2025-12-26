@@ -134,6 +134,7 @@ def main():
             with open(os.path.join(LOG_DIR, f"{phase}_log.txt"), "a") as f:
                 f.write(str(epoch + 1) + "\t" + str(epoch_loss[phase]) + "\n")
         print("Epoch:{}/{} | Training Loss: {train:6f} | Validation Loss: {val:6f}".format(epoch + 1, EPOCHS, **epoch_loss))
+
         scheduler.step()
         early_stop = early_stopping(model, epoch_loss[VAL])
         if (epoch + 1) % 5 == 0:
@@ -150,8 +151,8 @@ def main():
 def early_stopping(model, epoch_loss, patience=7):
     early_stop = False
     if not bool(early_stopping.__dict__):
-        early_stopping.best_loss = epoch_loss
-        early_stopping.record_loss = epoch_loss
+        early_stopping.best_loss = 1e9 + 7
+        early_stopping.record_loss = 1e9 + 7
         early_stopping.counter = 0
 
     if epoch_loss < early_stopping.best_loss:
