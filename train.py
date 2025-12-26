@@ -135,7 +135,7 @@ def main():
                 f.write(str(epoch + 1) + "\t" + str(epoch_loss[phase]) + "\n")
         print("Epoch:{}/{} | Training Loss: {train:6f} | Validation Loss: {val:6f}".format(epoch + 1, EPOCHS, **epoch_loss))
         scheduler.step()
-        early_stop = early_stopping(model, epoch_loss["val"])
+        early_stop = early_stopping(model, epoch_loss[VAL])
         if (epoch + 1) % 5 == 0:
             torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, f"model-epoch-{epoch + 1}.pt"))
         if early_stop:
