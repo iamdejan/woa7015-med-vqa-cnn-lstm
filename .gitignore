@@ -4,8 +4,8 @@ model/__pycache__
 cache
 
 # files
-ckpt*
-log*
+checkpoint/
+log/
 
 # pixi environments
 .pixi/*

@@ -1,45 +1,10 @@
-import re
-
 import evaluate
 import torch
 from datasets import load_dataset
-from torchvision import transforms
 
+import utils
 from build_vocab import Vocab
 from model import VQAModel
-
-FEATURE_SIZE, WORD_EMBED = 1024, 300
-MAX_QU_LEN, NUM_HIDDEN, HIDDEN_SIZE = 30, 2, 512
-REGEX = re.compile(r"(\W+)")
-
-
-transform = transforms.Compose(
-    [
-        transforms.Resize((224, 224)),  # not every image is in 224x224 size
-        transforms.ToTensor(),  # convert to (C,H,W) and [0,1]
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),  # mean=0; std=1
-    ]
-)
-
-
-def process_question(question_str, vocab, max_len=30):
-    """Tokenizes and converts question string to indices tensor."""
-    # 1. Tokenize (Simple regex split as used in typical VQA)
-    # Note: Ensure this matches exactly how you trained the Vocab!
-    tokens = [t.strip() for t in REGEX.split(question_str.lower()) if t.strip()]
-
-    # 2. Convert to Indices
-    indices = [vocab.word2idx(token) for token in tokens]
-
-    # 3. Pad or Truncate
-    if len(indices) < max_len:
-        # Pad with 0 (assuming 0 is <pad> in your vocab)
-        indices += [0] * (max_len - len(indices))
-    else:
-        indices = indices[:max_len]
-
-    # 4. Convert to Tensor
-    return torch.tensor(indices, dtype=torch.long)
 
 
 def main():
@@ -49,7 +14,7 @@ def main():
     question_vocab = Vocab("./data/test/q_vocab.json")
     answer_vocab = Vocab("./data/test/ans_vocab.json")
 
-    model = VQAModel(FEATURE_SIZE, question_vocab.vocab_size, answer_vocab.vocab_size, WORD_EMBED, HIDDEN_SIZE, NUM_HIDDEN)
+    model = VQAModel(utils.FEATURE_SIZE, question_vocab.vocab_size, answer_vocab.vocab_size, utils.WORD_EMBED, utils.HIDDEN_SIZE, utils.NUM_HIDDEN)
     model.eval()
 
     all_preds = []
@@ -58,21 +23,18 @@ def main():
     for item in test_dataset:
         with torch.no_grad():
             # --- PREPROCESS IMAGE ---
-            image = item["image"].convert("RGB")  # Ensure 3 channels
-            # transform returns (3, 224, 224)
-            transformed_image = transform(image)
-            # Add Batch Dimension: (1, 3, 224, 224) because VGG only accepts image with batch dimension
-            transformed_image = transformed_image.unsqueeze(0)
+            image = item["image"].convert("RGB")
+            image_tensor = utils.transform(image).unsqueeze(0)
 
             # --- PREPROCESS QUESTION ---
             question_str = item["question"]
             # Convert string -> Tensor of indices
-            question_tensor = process_question(question_str, question_vocab, MAX_QU_LEN)
+            question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
             # Add Batch Dimension: (1, 30)
             question_tensor = question_tensor.unsqueeze(0)
 
             # --- FORWARD PASS ---
-            logits = model(transformed_image, question_tensor)
+            logits = model(image_tensor, question_tensor)
 
             # --- PREDICTION ---
             # LogSoftmax + Argmax
