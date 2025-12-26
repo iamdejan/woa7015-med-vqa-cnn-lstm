@@ -70,7 +70,6 @@ def main():
             # Convert Index back to Word
             pred_word = answer_vocab.idx2word(pred_idx)
             ground_truth = str(item["answer"]).lower()
-
             if ground_truth in ["yes", "no"]:
                 q_type = "CLOSED"
             else:
@@ -106,12 +105,12 @@ def main():
         # METEOR (Best for synonyms like "Hepatic" vs "Liver")
         meteor = evaluate.load("meteor")
         meteor_score = meteor.compute(predictions=open_preds_text, references=open_refs_text)
-        print(f"METEOR:  {meteor_score['meteor']:.4f}")
+        print(f"METEOR:  {(meteor_score['meteor'] * 100):.4f}%")
 
         # ROUGE-L (Best for phrasing overlap)
         rouge = evaluate.load("rouge")
         rouge_score = rouge.compute(predictions=open_preds_text, references=open_refs_text)
-        print(f"ROUGE-L: {rouge_score['rougeL']:.4f}")
+        print(f"ROUGE-L: {(rouge_score['rougeL'] * 100):.4f}%")
     else:
         print("No OPEN questions found to evaluate.")
 
