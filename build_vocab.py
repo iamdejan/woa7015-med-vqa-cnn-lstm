@@ -1,6 +1,12 @@
-from datasets import load_dataset
-import re
 import json
+import os
+import re
+
+from datasets import load_dataset
+
+# Create directory if not exists
+if not os.path.exists("./data"):
+    os.makedirs("./data")
 
 
 class Vocab:
@@ -12,68 +18,63 @@ class Vocab:
     def load_vocab(self, vocab_file):
         with open(vocab_file) as f:
             ls = json.load(f)
-
         return ls
 
     def word2idx(self, vocab):
-        if vocab in self.vocab2idx:
-            return self.vocab2idx[vocab]
-        else:
-            return self.vocab2idx['<unk>']
+        return self.vocab2idx.get(vocab, self.vocab2idx["<unk>"])
 
     def idx2word(self, idx):
         return self.vocab[idx]
 
 
-
-# regex for word
-REGEX = re.compile(r'(\W+)')
+REGEX = re.compile(r"(\W+)")
 
 
-def build_question_vocab(dataset, set_name: str):
-    # build question vocabulary
+def build_vocab(dataset):
+    # Collect ALL unique questions and answers from BOTH train and test
+    all_questions = []
+    all_answers = []
+
+    # Iterate over both splits
+    for split in ["train", "test"]:
+        for item in dataset[split]:
+            all_questions.append(item["question"])
+            all_answers.append(item["answer"])
+
+    # --- Build Question Vocab ---
     q_vocab = []
-    for question in dataset["question"]:
-        split = REGEX.split(question.lower())
-        tmp = [w.strip() for w in split if len(w.strip()) > 0]
-        q_vocab.extend(tmp)
+    for q in all_questions:
+        split_q = REGEX.split(q.lower())
+        q_vocab.extend([w.strip() for w in split_q if len(w.strip()) > 0])
 
     q_vocab = list(set(q_vocab))
     q_vocab.sort()
-    q_vocab.insert(0, '<pad>')
-    q_vocab.insert(1, '<unk>')
-    with open(f"./data/{set_name}/q_vocab.json", 'w') as json_file:
-        json.dump(q_vocab, json_file, indent=4)
+    q_vocab.insert(0, "<pad>")
+    q_vocab.insert(1, "<unk>")
 
+    with open("./data/q_vocab.json", "w") as f:
+        json.dump(q_vocab, f, indent=4)
+    print(f"Saved {len(q_vocab)} question tokens.")
 
-def build_answer_vocab(dataset, set_name: str):
+    # --- Build Answer Vocab ---
     ans_vocab = []
-    for answer in dataset["answer"]:
-        clean_ans = answer.lower().strip()
+    for a in all_answers:
+        clean_ans = a.lower().strip()
         if len(clean_ans) > 0:
             ans_vocab.append(clean_ans)
-    
-    # Create unique list of full phrases
+
     ans_vocab = list(set(ans_vocab))
     ans_vocab.sort()
-    
-    # Add special token (unk is still useful for unseen answers in test time)
-    ans_vocab.insert(0, '<unk>')
-    with open(f"./data/{set_name}/ans_vocab.json", 'w') as json_file:
-        json.dump(ans_vocab, json_file, indent=4)
+    ans_vocab.insert(0, "<unk>")
 
-
-SETS = ["train", "test"]
+    with open("./data/ans_vocab.json", "w") as f:
+        json.dump(ans_vocab, f, indent=4)
+    print(f"Saved {len(ans_vocab)} answer tokens.")
 
 
 def main():
-    dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir='./cache')
-    
-    for set_name in SETS:
-        set = dataset["test"]
-
-        build_question_vocab(set, set_name)
-        build_answer_vocab(set, set_name)
+    dataset = load_dataset("flaviagiammarino/vqa-rad", cache_dir="./cache")
+    build_vocab(dataset)
 
 
 if __name__ == "__main__":
