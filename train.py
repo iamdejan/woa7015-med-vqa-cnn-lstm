@@ -88,7 +88,9 @@ def main():
 
         print("=" * 60)
         print(f"EPOCH {epoch}")
-        print("Epoch:{}/{} | Training Loss: {train:6f} | Validation Loss: {val:6f}".format(epoch + 1, EPOCHS, **epoch_loss))
+        print(
+            f"Epoch:{epoch}/{EPOCHS} | Training Loss: {(epoch_loss[TRAIN] / len(train_dataset)):6f} | Validation Loss: {epoch_loss[VAL] / len(val_dataset)}"
+        )
         utils.print_accuracy_report(model, val_dataset, question_vocab, answer_vocab, True, device)
         print("=" * 60)
 

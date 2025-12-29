@@ -88,9 +88,9 @@ def answer_string_to_tensor(item, answer_vocab, device):
 
 def print_accuracy_report(model, dataset, question_vocab, answer_vocab, is_training: bool, device):
     """
-    Evaluates the model and prints a detailed accuracy report.
+    Evaluates the model and prints a compact one-line report.
     """
-    # 1. Setup NLTK (SSL Fix)
+    # 1. Setup NLTK (SSL Fix) - Keep this to prevent errors
     try:
         _create_unverified_https_context = ssl._create_unverified_context
     except AttributeError:
@@ -110,29 +110,22 @@ def print_accuracy_report(model, dataset, question_vocab, answer_vocab, is_train
     open_preds_text = []
     open_refs_text = []
 
-    print(f"\n[Report] Evaluating on {len(dataset)} samples...")
-
     # 3. Evaluation Loop
     for item in dataset:
         with torch.no_grad():
-            # Image
             image = item["image"].convert("RGB")
             image_tensor = val_transform(image).unsqueeze(0).to(device)
 
-            # Question
             question_str = item["question"]
             question_tensor = convert_text_to_token_tensor(question_str, question_vocab, MAX_QU_LEN)
             question_tensor = question_tensor.unsqueeze(0).to(device)
 
-            # Predict
             logits = model(image_tensor, question_tensor)
             pred_idx = torch.argmax(logits, dim=1).item()
             pred_word = answer_vocab.idx2word(pred_idx)
 
-            # Ground Truth
             ground_truth = item["answer"].lower().strip()
 
-            # Categorize
             if ground_truth in ["yes", "no"]:
                 q_type = "CLOSED"
             else:
@@ -140,7 +133,6 @@ def print_accuracy_report(model, dataset, question_vocab, answer_vocab, is_train
                 open_preds_text.append(pred_word)
                 open_refs_text.append(ground_truth)
 
-            # Update Counts
             metrics["ALL"]["total"] += 1
             metrics[q_type]["total"] += 1
 
@@ -148,33 +140,29 @@ def print_accuracy_report(model, dataset, question_vocab, answer_vocab, is_train
                 metrics["ALL"]["correct"] += 1
                 metrics[q_type]["correct"] += 1
 
-    # 4. Print Results
-    print("\n" + "=" * 30)
-    print("ACCURACY RESULTS")
-    print("=" * 30)
+    # 4. COMPACT PRINT LOGIC
+    stats = []
 
+    # Format Accuracy: "Closed: [percentage]% | Open: [percentage]% | All: [percentage]%"
     for key in ["CLOSED", "OPEN", "ALL"]:
         if metrics[key]["total"] > 0:
             acc = (metrics[key]["correct"] / metrics[key]["total"]) * 100
-            print(f"{key} ACCURACY: {acc:.2f}% ({metrics[key]['correct']}/{metrics[key]['total']})")
+            stats.append(f"{key}: {acc:.2f}%")
         else:
-            print(f"{key} ACCURACY: N/A")
+            stats.append(f"{key}: N/A")
 
-    print("\n" + "=" * 30)
-    print("SEMANTIC METRICS (OPEN ONLY)")
-    print("=" * 30)
-
+    # Format Semantic Metrics: "Meteor: [percentage]% | Rouge: [percentage]%"
     if len(open_preds_text) > 0:
         meteor = evaluate.load("meteor")
         meteor_score = meteor.compute(predictions=open_preds_text, references=open_refs_text)
-        print(f"METEOR:  {(meteor_score['meteor'] * 100):.4f}%")
+        stats.append(f"METEOR: {(meteor_score['meteor'] * 100):.2f}%")
 
         rouge = evaluate.load("rouge")
         rouge_score = rouge.compute(predictions=open_preds_text, references=open_refs_text)
-        print(f"ROUGE-L: {(rouge_score['rougeL'] * 100):.4f}%")
-    else:
-        print("No OPEN questions found to evaluate.")
-    print("=" * 30 + "\n")
+        stats.append(f"ROUGE-L: {(rouge_score['rougeL'] * 100):.2f}%")
+
+    # Print One-Liner
+    print(f">> [Eval] {' | '.join(stats)}")
 
     if is_training:
         model.train()  # Switch back to train mode for next epoch
