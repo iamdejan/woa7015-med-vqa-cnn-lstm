@@ -8,7 +8,6 @@ MAX_QU_LEN, NUM_HIDDEN, HIDDEN_SIZE = 30, 2, 512
 REGEX = re.compile(r"(\W+)")
 
 
-# Add this for Training (Strong Augmentation)
 train_transform = transforms.Compose(
     [
         transforms.Resize((224, 224)),
@@ -53,3 +52,32 @@ def convert_text_to_token_tensor(text, vocab, max_len=30):
 
     # 4. Convert to Tensor
     return torch.tensor(indices, dtype=torch.long)
+
+
+def image_to_tensor(item, device):
+    image = item["image"].convert("RGB")
+    image_tensor = train_transform(image).unsqueeze(0)
+    image_tensor = image_tensor.to(device)
+    return image_tensor
+
+
+def question_string_to_tensor(item, question_vocab, device):
+    question_str = item["question"]
+    question_tensor = convert_text_to_token_tensor(question_str, question_vocab, MAX_QU_LEN)
+    question_tensor = question_tensor.unsqueeze(0).to(device)
+    return question_tensor
+
+
+def answer_string_to_tensor(item, answer_vocab, device):
+    answer_str = item["answer"].lower().strip()
+
+    # Look up the ID for the WHOLE phrase
+    if answer_str in answer_vocab.vocab2idx:
+        ans_idx = answer_vocab.word2idx(answer_str)
+    else:
+        ans_idx = answer_vocab.word2idx("<unk>")
+
+    # Create the target tensor
+    # We want a 1D Tensor containing a single class index: [Index]
+    answer_tensor = torch.tensor([ans_idx], dtype=torch.long).to(device)
+    return answer_tensor

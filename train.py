@@ -63,30 +63,9 @@ def main():
         for item in train_dataset:
             optimizer.zero_grad()
 
-            # --- PREPROCESS IMAGE ---
-            image = item["image"].convert("RGB")
-            image_tensor = utils.train_transform(image).unsqueeze(0)
-            image_tensor = image_tensor.to(device)
-
-            # --- PREPROCESS QUESTION ---
-            question_str = item["question"]
-            # Convert string -> Tensor of indices
-            question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
-            # Add Batch Dimension: (1, 30)
-            question_tensor = question_tensor.unsqueeze(0).to(device)
-
-            # --- PREPROCESS ANSWER (UPDATED) ---
-            answer_str = item["answer"].lower().strip()
-
-            # Look up the ID for the WHOLE phrase
-            if answer_str in answer_vocab.vocab2idx:
-                ans_idx = answer_vocab.word2idx(answer_str)
-            else:
-                ans_idx = answer_vocab.word2idx("<unk>")
-
-            # Create the target tensor
-            # We want a 1D Tensor containing a single class index: [Index]
-            answer_tensor = torch.tensor([ans_idx], dtype=torch.long).to(device)
+            image_tensor = utils.image_to_tensor(item, device)
+            question_tensor = utils.question_string_to_tensor(item, question_vocab, device)
+            answer_tensor = utils.answer_string_to_tensor(item, answer_vocab, device)
 
             # forward
             logits = model(image_tensor, question_tensor)
@@ -98,30 +77,9 @@ def main():
 
         model.eval()
         for item in val_dataset:
-            # --- PREPROCESS IMAGE ---
-            image = item["image"].convert("RGB")
-            image_tensor = utils.val_transform(image).unsqueeze(0)
-            image_tensor = image_tensor.to(device)
-
-            # --- PREPROCESS QUESTION ---
-            question_str = item["question"]
-            # Convert string -> Tensor of indices
-            question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
-            # Add Batch Dimension: (1, 30)
-            question_tensor = question_tensor.unsqueeze(0).to(device)
-
-            # --- PREPROCESS ANSWER (UPDATED) ---
-            answer_str = item["answer"].lower().strip()
-
-            # Look up the ID for the WHOLE phrase
-            if answer_str in answer_vocab.vocab2idx:
-                ans_idx = answer_vocab.word2idx(answer_str)
-            else:
-                ans_idx = answer_vocab.word2idx("<unk>")
-
-            # Create the target tensor
-            # We want a 1D Tensor containing a single class index: [Index]
-            answer_tensor = torch.tensor([ans_idx], dtype=torch.long).to(device)
+            image_tensor = utils.image_to_tensor(item, device)
+            question_tensor = utils.question_string_to_tensor(item, question_vocab, device)
+            answer_tensor = utils.answer_string_to_tensor(item, answer_vocab, device)
 
             with torch.no_grad():
                 logits = model(image_tensor, question_tensor)

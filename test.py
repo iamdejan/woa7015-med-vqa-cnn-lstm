@@ -9,6 +9,8 @@ import utils
 from build_vocab import Vocab
 from model import VQAModel
 
+device = torch.device("cpu")
+
 
 def main():
     try:
@@ -48,16 +50,8 @@ def main():
     print(f"Start Testing on {len(test_dataset)} samples...")
     for item in test_dataset:
         with torch.no_grad():
-            # --- PREPROCESS IMAGE ---
-            image = item["image"].convert("RGB")
-            image_tensor = utils.val_transform(image).unsqueeze(0)
-
-            # --- PREPROCESS QUESTION ---
-            question_str = item["question"]
-            # Convert string -> Tensor of indices
-            question_tensor = utils.convert_text_to_token_tensor(question_str, question_vocab, utils.MAX_QU_LEN)
-            # Add Batch Dimension: (1, 30)
-            question_tensor = question_tensor.unsqueeze(0)
+            image_tensor = utils.image_to_tensor(item, device)
+            question_tensor = utils.question_string_to_tensor(item, question_vocab, device)
 
             # --- FORWARD PASS ---
             logits = model(image_tensor, question_tensor)
@@ -69,7 +63,7 @@ def main():
 
             # Convert Index back to Word
             pred_word = answer_vocab.idx2word(pred_idx)
-            ground_truth = str(item["answer"]).lower()
+            ground_truth = str(item["answer"]).lower().strip()
             if ground_truth in ["yes", "no"]:
                 q_type = "CLOSED"
             else:
