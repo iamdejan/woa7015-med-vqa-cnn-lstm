@@ -1,5 +1,8 @@
 import re
+import ssl
 
+import evaluate
+import nltk
 import torch
 from torchvision import transforms
 
@@ -81,3 +84,97 @@ def answer_string_to_tensor(item, answer_vocab, device):
     # We want a 1D Tensor containing a single class index: [Index]
     answer_tensor = torch.tensor([ans_idx], dtype=torch.long).to(device)
     return answer_tensor
+
+
+def print_accuracy_report(model, dataset, question_vocab, answer_vocab, is_training: bool, device):
+    """
+    Evaluates the model and prints a detailed accuracy report.
+    """
+    # 1. Setup NLTK (SSL Fix)
+    try:
+        _create_unverified_https_context = ssl._create_unverified_context
+    except AttributeError:
+        pass
+    else:
+        ssl._create_default_https_context = _create_unverified_https_context
+
+    for res in ["wordnet", "punkt", "omw-1.4"]:
+        try:
+            nltk.data.find(f"corpora/{res}")
+        except LookupError:
+            nltk.download(res, quiet=True)
+
+    # 2. Setup Metrics
+    model.eval()
+    metrics = {"CLOSED": {"correct": 0, "total": 0}, "OPEN": {"correct": 0, "total": 0}, "ALL": {"correct": 0, "total": 0}}
+    open_preds_text = []
+    open_refs_text = []
+
+    print(f"\n[Report] Evaluating on {len(dataset)} samples...")
+
+    # 3. Evaluation Loop
+    for item in dataset:
+        with torch.no_grad():
+            # Image
+            image = item["image"].convert("RGB")
+            image_tensor = val_transform(image).unsqueeze(0).to(device)
+
+            # Question
+            question_str = item["question"]
+            question_tensor = convert_text_to_token_tensor(question_str, question_vocab, MAX_QU_LEN)
+            question_tensor = question_tensor.unsqueeze(0).to(device)
+
+            # Predict
+            logits = model(image_tensor, question_tensor)
+            pred_idx = torch.argmax(logits, dim=1).item()
+            pred_word = answer_vocab.idx2word(pred_idx)
+
+            # Ground Truth
+            ground_truth = item["answer"].lower().strip()
+
+            # Categorize
+            if ground_truth in ["yes", "no"]:
+                q_type = "CLOSED"
+            else:
+                q_type = "OPEN"
+                open_preds_text.append(pred_word)
+                open_refs_text.append(ground_truth)
+
+            # Update Counts
+            metrics["ALL"]["total"] += 1
+            metrics[q_type]["total"] += 1
+
+            if pred_word == ground_truth:
+                metrics["ALL"]["correct"] += 1
+                metrics[q_type]["correct"] += 1
+
+    # 4. Print Results
+    print("\n" + "=" * 30)
+    print("ACCURACY RESULTS")
+    print("=" * 30)
+
+    for key in ["CLOSED", "OPEN", "ALL"]:
+        if metrics[key]["total"] > 0:
+            acc = (metrics[key]["correct"] / metrics[key]["total"]) * 100
+            print(f"{key} ACCURACY: {acc:.2f}% ({metrics[key]['correct']}/{metrics[key]['total']})")
+        else:
+            print(f"{key} ACCURACY: N/A")
+
+    print("\n" + "=" * 30)
+    print("SEMANTIC METRICS (OPEN ONLY)")
+    print("=" * 30)
+
+    if len(open_preds_text) > 0:
+        meteor = evaluate.load("meteor")
+        meteor_score = meteor.compute(predictions=open_preds_text, references=open_refs_text)
+        print(f"METEOR:  {(meteor_score['meteor'] * 100):.4f}%")
+
+        rouge = evaluate.load("rouge")
+        rouge_score = rouge.compute(predictions=open_preds_text, references=open_refs_text)
+        print(f"ROUGE-L: {(rouge_score['rougeL'] * 100):.4f}%")
+    else:
+        print("No OPEN questions found to evaluate.")
+    print("=" * 30 + "\n")
+
+    if is_training:
+        model.train()  # Switch back to train mode for next epoch

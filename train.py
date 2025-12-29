@@ -56,7 +56,7 @@ def main():
 
     print(">> start training")
     start_time = time.time()
-    for epoch in range(EPOCHS):
+    for epoch in range(1, EPOCHS + 1):
         epoch_loss = {key: 0 for key in [TRAIN, VAL]}
 
         model.train()
@@ -86,19 +86,18 @@ def main():
                 loss = criterion(logits, answer_tensor)
             epoch_loss[VAL] += loss.item()
 
-        # statistic
-        for phase in [TRAIN, VAL]:
-            epoch_loss[phase] /= len(new_split_dataset[phase])
-            with open(os.path.join(LOG_DIR, f"{phase}_log.txt"), "a") as f:
-                f.write(str(epoch + 1) + "\t" + str(epoch_loss[phase]) + "\n")
+        print("=" * 60)
+        print(f"EPOCH {epoch}")
         print("Epoch:{}/{} | Training Loss: {train:6f} | Validation Loss: {val:6f}".format(epoch + 1, EPOCHS, **epoch_loss))
+        utils.print_accuracy_report(model, val_dataset, question_vocab, answer_vocab, True, device)
+        print("=" * 60)
 
         scheduler.step()
         early_stop = early_stopping(model, epoch_loss[VAL], patience=10)
-        if (epoch + 1) % 5 == 0:
-            torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, f"model-epoch-{epoch + 1}.pt"))
+        if epoch % 5 == 0:
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, f"model-epoch-{epoch}.pt"))
         if early_stop:
-            print(f">> Early stop at {epoch + 1} epoch")
+            print(f">> Early stop at {epoch} epoch")
             break
 
     end_time = time.time()

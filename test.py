@@ -1,6 +1,5 @@
 import ssl
 
-import evaluate
 import nltk
 import torch
 from datasets import load_dataset
@@ -80,35 +79,7 @@ def main():
                 metrics["ALL"]["correct"] += 1
                 metrics[q_type]["correct"] += 1
 
-    # --- Print Accuracy Report ---
-    print("\n" + "=" * 30)
-    print("ACCURACY RESULTS")
-    print("=" * 30)
-
-    for key in ["CLOSED", "OPEN", "ALL"]:
-        if metrics[key]["total"] > 0:
-            acc = (metrics[key]["correct"] / metrics[key]["total"]) * 100
-            print(f"{key} ACCURACY: {acc:.2f}% ({metrics[key]['correct']}/{metrics[key]['total']})")
-
-    # --- Print Semantic Metrics (Open-Ended Only) ---
-    print("\n" + "=" * 30)
-    print("SEMANTIC METRICS (OPEN ONLY)")
-    print("=" * 30)
-
-    if len(open_preds_text) > 0:
-        # METEOR (Best for synonyms like "Hepatic" vs "Liver")
-        meteor = evaluate.load("meteor")
-        meteor_score = meteor.compute(predictions=open_preds_text, references=open_refs_text)
-        print(f"METEOR:  {(meteor_score['meteor'] * 100):.4f}%")
-
-        # ROUGE-L (Best for phrasing overlap)
-        rouge = evaluate.load("rouge")
-        rouge_score = rouge.compute(predictions=open_preds_text, references=open_refs_text)
-        print(f"ROUGE-L: {(rouge_score['rougeL'] * 100):.4f}%")
-    else:
-        print("No OPEN questions found to evaluate.")
-
-    print("=" * 30)
+    utils.print_accuracy_report(model, test_dataset, question_vocab, answer_vocab, False, device)
 
 
 if __name__ == "__main__":
